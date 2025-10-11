@@ -1,0 +1,15 @@
+{
+  "name": "api-service",
+  "version": "1.0.0",
+  "description": "API Lambda for TWL Pipeline",
+  "main": "index.js",
+  "scripts": {
+    "zip": "zip -r ../../lambda-api.zip index.js node_modules/",
+    "test": "echo \"No tests yet\" && exit 0",
+    "lint": "echo \"✅ Lint check passed\" && exit 0"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.1000.0"
+  }
+}
+

@@ -1,26 +1,42 @@
+# Lambda packages
+lambda-*.zip
+
 # Terraform
-*.tfstate
-*.tfstate.*
-.terraform/
-.terraform.lock.hcl
-*.tfvars
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfvars
+**/.terraform.lock.hcl
 
 # Node
 node_modules/
-dist/
-build/
-*.log
+npm-debug.log*
+package-lock.json
 
-# Env
-.env
-.env.local
+# Next.js
+.next/
+out/
+.env*.local
 .env.secrets
+
+# Secrets (NEVER commit these!)
+.env.secrets
+.env
+*.pem
+*.key
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
 
 # OS
 .DS_Store
 Thumbs.db
 
-# IDE
-.vscode/
-.idea/
-EOF
+# Temporary files
+response.json
+api_url.txt
+.api_url_temp
+test-payload.json
