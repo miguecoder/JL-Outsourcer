@@ -256,6 +256,7 @@ Located in `.github/workflows/deploy.yml`:
 - [Architecture & Design Decisions](docs/architecture.md)
 - [Demo & Testing Notes](docs/demo-notes.md)
 - [Architecture Diagram](docs/diagrams/architecture.png)
+- [CI/CD](docs/ci-cd.md)
 
 ## 🎯 Trade-offs & Decisions
 

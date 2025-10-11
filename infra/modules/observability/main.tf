@@ -10,9 +10,9 @@ resource "aws_cloudwatch_dashboard" "main" {
         type = "metric"
         properties = {
           metrics = [
-            ["AWS/Lambda", "Invocations", { stat = "Sum", label = "Ingestion" }, { dimensions = { FunctionName = var.ingestion_lambda_name } }],
-            ["...", { dimensions = { FunctionName = var.processing_lambda_name } }],
-            ["...", { dimensions = { FunctionName = var.api_lambda_name } }]
+            ["AWS/Lambda", "Invocations", "FunctionName", var.ingestion_lambda_name, { stat = "Sum", label = "Ingestion" }],
+            ["...", ".", var.processing_lambda_name, { label = "Processing" }],
+            ["...", ".", var.api_lambda_name, { label = "API" }]
           ]
           period = 300
           stat   = "Sum"
@@ -35,9 +35,9 @@ resource "aws_cloudwatch_dashboard" "main" {
         type = "metric"
         properties = {
           metrics = [
-            ["AWS/Lambda", "Errors", { stat = "Sum", label = "Ingestion Errors" }, { dimensions = { FunctionName = var.ingestion_lambda_name } }],
-            ["...", { dimensions = { FunctionName = var.processing_lambda_name }, label = "Processing Errors" }],
-            ["...", { dimensions = { FunctionName = var.api_lambda_name }, label = "API Errors" }]
+            ["AWS/Lambda", "Errors", "FunctionName", var.ingestion_lambda_name, { stat = "Sum", label = "Ingestion" }],
+            ["...", ".", var.processing_lambda_name, { label = "Processing" }],
+            ["...", ".", var.api_lambda_name, { label = "API" }]
           ]
           period = 300
           stat   = "Sum"
@@ -60,9 +60,9 @@ resource "aws_cloudwatch_dashboard" "main" {
         type = "metric"
         properties = {
           metrics = [
-            ["AWS/Lambda", "Duration", { stat = "Average", label = "Ingestion" }, { dimensions = { FunctionName = var.ingestion_lambda_name } }],
-            ["...", { dimensions = { FunctionName = var.processing_lambda_name } }],
-            ["...", { dimensions = { FunctionName = var.api_lambda_name } }]
+            ["AWS/Lambda", "Duration", "FunctionName", var.ingestion_lambda_name, { stat = "Average", label = "Ingestion" }],
+            ["...", ".", var.processing_lambda_name, { label = "Processing" }],
+            ["...", ".", var.api_lambda_name, { label = "API" }]
           ]
           period = 300
           stat   = "Average"
@@ -85,9 +85,9 @@ resource "aws_cloudwatch_dashboard" "main" {
         type = "metric"
         properties = {
           metrics = [
-            ["AWS/SQS", "NumberOfMessagesSent", { label = "Messages Sent" }, { dimensions = { QueueName = var.queue_name } }],
-            [".", "NumberOfMessagesReceived", { label = "Messages Received" }, { dimensions = { QueueName = var.queue_name } }],
-            [".", "ApproximateNumberOfMessagesVisible", { label = "Messages Visible" }, { dimensions = { QueueName = var.queue_name } }]
+            ["AWS/SQS", "NumberOfMessagesSent", "QueueName", var.queue_name, { label = "Sent" }],
+            [".", "NumberOfMessagesReceived", ".", ".", { label = "Received" }],
+            [".", "ApproximateNumberOfMessagesVisible", ".", ".", { label = "Visible" }]
           ]
           period = 300
           stat   = "Sum"
@@ -110,8 +110,8 @@ resource "aws_cloudwatch_dashboard" "main" {
         type = "metric"
         properties = {
           metrics = [
-            ["AWS/DynamoDB", "ConsumedReadCapacityUnits", { stat = "Sum", label = "Read Units" }, { dimensions = { TableName = var.dynamodb_table_name } }],
-            [".", "ConsumedWriteCapacityUnits", { stat = "Sum", label = "Write Units" }, { dimensions = { TableName = var.dynamodb_table_name } }]
+            ["AWS/DynamoDB", "ConsumedReadCapacityUnits", "TableName", var.dynamodb_table_name, { stat = "Sum", label = "Read" }],
+            [".", "ConsumedWriteCapacityUnits", ".", ".", { label = "Write" }]
           ]
           period = 300
           stat   = "Sum"
@@ -134,9 +134,9 @@ resource "aws_cloudwatch_dashboard" "main" {
         type = "metric"
         properties = {
           metrics = [
-            ["AWS/ApiGateway", "Count", { stat = "Sum", label = "Requests" }, { dimensions = { ApiId = var.api_gateway_id } }],
-            [".", "4XXError", { stat = "Sum", label = "4XX Errors" }, { dimensions = { ApiId = var.api_gateway_id } }],
-            [".", "5XXError", { stat = "Sum", label = "5XX Errors" }, { dimensions = { ApiId = var.api_gateway_id } }]
+            ["AWS/ApiGateway", "Count", "ApiId", var.api_gateway_id, { stat = "Sum", label = "Requests" }],
+            [".", "4XXError", ".", ".", { label = "4XX" }],
+            [".", "5XXError", ".", ".", { label = "5XX" }]
           ]
           period = 300
           stat   = "Sum"
@@ -159,9 +159,9 @@ resource "aws_cloudwatch_dashboard" "main" {
         type = "metric"
         properties = {
           metrics = [
-            ["AWS/Lambda", "Throttles", { stat = "Sum" }, { dimensions = { FunctionName = var.ingestion_lambda_name } }],
-            ["...", { dimensions = { FunctionName = var.processing_lambda_name } }],
-            ["...", { dimensions = { FunctionName = var.api_lambda_name } }]
+            ["AWS/Lambda", "Throttles", "FunctionName", var.ingestion_lambda_name, { stat = "Sum", label = "Ingestion" }],
+            ["...", ".", var.processing_lambda_name, { label = "Processing" }],
+            ["...", ".", var.api_lambda_name, { label = "API" }]
           ]
           period = 300
           stat   = "Sum"
@@ -184,8 +184,8 @@ resource "aws_cloudwatch_dashboard" "main" {
         type = "metric"
         properties = {
           metrics = [
-            ["AWS/ApiGateway", "Latency", { stat = "Average", label = "Average" }, { dimensions = { ApiId = var.api_gateway_id } }],
-            ["...", { stat = "p99", label = "p99" }]
+            ["AWS/ApiGateway", "Latency", "ApiId", var.api_gateway_id, { stat = "Average", label = "Avg" }],
+            ["...", ".", ".", { stat = "p99", label = "p99" }]
           ]
           period = 300
           stat   = "Average"
