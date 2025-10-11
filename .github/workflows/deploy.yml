@@ -131,6 +131,50 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install Lambda Dependencies
+        run: |
+          cd services/ingestion && npm install --production
+          cd ../processing && npm install --production
+          cd ../api && npm install --production
+
+      - name: Package Lambda Functions
+        run: |
+          python3 << 'EOF'
+          import zipfile
+          import os
+
+          services = ['ingestion', 'processing', 'api']
+          
+          for service in services:
+              zip_name = f'lambda-{service}.zip'
+              print(f'Packaging {service}...')
+              
+              with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                  # Add index.js
+                  zipf.write(f'services/{service}/index.js', 'index.js')
+                  
+                  # Add node_modules
+                  node_modules_path = f'services/{service}/node_modules'
+                  if os.path.exists(node_modules_path):
+                      for root, dirs, files in os.walk(node_modules_path):
+                          for file in files:
+                              file_path = os.path.join(root, file)
+                              arcname = os.path.join('node_modules', os.path.relpath(file_path, node_modules_path))
+                              zipf.write(file_path, arcname)
+              
+              print(f'✓ {zip_name} created')
+          EOF
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
@@ -146,9 +190,9 @@ jobs:
           cd infra/envs/dev
           terraform apply -auto-approve
 
-  # Job 5: Package & Deploy Lambdas
+  # Job 5: Update Lambda Code (Infrastructure already deployed)
   deploy-lambdas:
-    name: Deploy Lambda Functions
+    name: Update Lambda Code
     runs-on: ubuntu-latest
     needs: deploy-infra
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -177,7 +221,29 @@ jobs:
 
       - name: Package Lambdas
         run: |
-          make package
+          python3 << 'EOF'
+          import zipfile
+          import os
+
+          services = ['ingestion', 'processing', 'api']
+          
+          for service in services:
+              zip_name = f'lambda-{service}.zip'
+              print(f'Packaging {service}...')
+              
+              with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                  zipf.write(f'services/{service}/index.js', 'index.js')
+                  
+                  node_modules_path = f'services/{service}/node_modules'
+                  if os.path.exists(node_modules_path):
+                      for root, dirs, files in os.walk(node_modules_path):
+                          for file in files:
+                              file_path = os.path.join(root, file)
+                              arcname = os.path.join('node_modules', os.path.relpath(file_path, node_modules_path))
+                              zipf.write(file_path, arcname)
+              
+              print(f'✓ {zip_name} created ({os.path.getsize(zip_name) / 1024 / 1024:.2f} MB)')
+          EOF
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -186,13 +252,15 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Deploy Lambdas
+      - name: Update Lambda Functions
         run: |
-          make deploy-lambdas
+          aws lambda update-function-code --function-name twl-pipeline-ingestion-dev --zip-file fileb://lambda-ingestion.zip
+          aws lambda update-function-code --function-name twl-pipeline-processing-dev --zip-file fileb://lambda-processing.zip
+          aws lambda update-function-code --function-name twl-pipeline-api-dev --zip-file fileb://lambda-api.zip
 
       - name: Verify Deployment
         run: |
-          echo "✅ Lambdas deployed successfully"
+          echo "✅ Lambdas updated successfully"
           aws lambda list-functions --query 'Functions[?starts_with(FunctionName, `twl-pipeline`)].FunctionName'
 
   # Job 6: Integration Test
@@ -208,6 +276,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -215,23 +289,46 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Terraform Init
+        run: |
+          cd infra/envs/dev
+          terraform init
+
+      - name: Get API URL
+        id: get_api_url
+        run: |
+          cd infra/envs/dev
+          API_URL=$(terraform output -raw api_url)
+          echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+
       - name: Test Ingestion Lambda
         run: |
           aws lambda invoke \
             --function-name twl-pipeline-ingestion-dev \
+            --output json \
             response.json
           cat response.json
+          rm response.json
 
       - name: Wait for Processing
-        run: sleep 30
+        run: |
+          echo "Waiting 30 seconds for processing..."
+          sleep 30
 
       - name: Test API Endpoints
         run: |
-          API_URL=$(cd infra/envs/dev && terraform output -raw api_url)
-          curl -f "$API_URL/analytics" || exit 1
-          curl -f "$API_URL/records?limit=3" || exit 1
+          echo "Testing API at: ${{ steps.get_api_url.outputs.api_url }}"
+          curl -f "${{ steps.get_api_url.outputs.api_url }}/analytics" || exit 1
+          curl -f "${{ steps.get_api_url.outputs.api_url }}/records?limit=3" || exit 1
           echo "✅ API endpoints working"
 
-      - name: Health Check
-        run: make check
+      - name: Verify Data in DynamoDB
+        run: |
+          RECORD_COUNT=$(aws dynamodb scan --table-name twl-pipeline-curated-dev --select COUNT --query 'Count' --output text)
+          echo "Records in DynamoDB: $RECORD_COUNT"
+          if [ "$RECORD_COUNT" -lt 1 ]; then
+            echo "❌ No records found in DynamoDB"
+            exit 1
+          fi
+          echo "✅ Integration test passed"
 
