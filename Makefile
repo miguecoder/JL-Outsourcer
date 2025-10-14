@@ -3,7 +3,7 @@
 
 # Variables
 PROJECT_NAME = twl-pipeline
-ENV = dev
+ENV ?= dev
 INFRA_DIR = infra/envs/$(ENV)
 FRONTEND_DIR = frontend
 
@@ -17,7 +17,7 @@ NC = \033[0m # No Color
 ##@ General
 
 help: ## Display this help message
-	@awk 'BEGIN {FS = ":.*##"; printf "\n$(BLUE)Usage:$(NC)\n  make $(GREEN)<target>$(NC)\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  $(GREEN)%-20s$(NC) %s\n", $$1, $$2 } /^##@/ { printf "\n$(YELLOW)%s$(NC)\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*##"; printf "\n$(BLUE)Usage:$(NC)\n  make $(GREEN)<target>$(NC) [ENV=dev|prod]\n\n$(YELLOW)Current Environment: $(ENV)$(NC)\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  $(GREEN)%-20s$(NC) %s\n", $$1, $$2 } /^##@/ { printf "\n$(YELLOW)%s$(NC)\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 ##@ Installation & Setup
 
@@ -122,6 +122,13 @@ frontend-setup: ## Configure frontend with API URL
 	@echo "$(GREEN)✅ Frontend configured with API URL$(NC)"
 
 ##@ Testing & Monitoring
+
+test: ## Run unit tests for all services
+	@echo "$(BLUE)🧪 Running unit tests...$(NC)"
+	@cd services/ingestion && npm test
+	@cd services/processing && npm test
+	@cd services/api && npm test
+	@echo "$(GREEN)✅ All tests passed$(NC)"
 
 test-api: ## Test API endpoints
 	@echo "$(BLUE)🧪 Testing API endpoints...$(NC)"

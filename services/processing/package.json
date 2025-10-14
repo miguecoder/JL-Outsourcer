@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "zip": "zip -r ../../lambda-processing.zip index.js node_modules/",
-    "test": "echo \"No tests yet\" && exit 0",
+    "test": "node test/index.test.js",
     "lint": "echo \"✅ Lint check passed\" && exit 0"
   },
   "dependencies": {

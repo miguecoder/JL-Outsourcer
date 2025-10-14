@@ -112,8 +112,11 @@ See [QUICK_START.md](QUICK_START.md) for more commands.
 │   │   ├── storage/      # S3 + DynamoDB
 │   │   ├── messaging/    # SQS queues
 │   │   ├── compute/      # Ingestion & Processing Lambdas
-│   │   └── api/          # API Gateway + API Lambda
-│   └── envs/dev/         # Development environment
+│   │   ├── api/          # API Gateway + API Lambda
+│   │   └── observability/ # CloudWatch Dashboard + Alarms
+│   └── envs/
+│       ├── dev/          # Development environment
+│       └── prod/         # Production environment
 ├── frontend/             # Next.js web application
 ├── docs/                 # Documentation & diagrams
 └── .github/workflows/    # CI/CD pipelines
@@ -139,9 +142,9 @@ See [QUICK_START.md](QUICK_START.md) for more commands.
 
 ### Infrastructure as Code (Terraform)
 
-- **Modular design**: Reusable modules for different components
+- **Modular design**: 5 reusable modules (storage, messaging, compute, api, observability)
 - **Remote state**: S3 backend with DynamoDB locking
-- **Environment separation**: `dev` environment (extendable to `prod`)
+- **Multi-environment**: `dev` and `prod` environments with isolated resources
 - **Security baseline**: 
   - Least-privilege IAM policies per Lambda
   - Secrets Manager for API keys (future)
@@ -170,6 +173,36 @@ See [QUICK_START.md](QUICK_START.md) for more commands.
    - Dashboard with charts (Bar chart by source, Line chart timeline)
    - Records browser with filters
    - Detail view for individual records
+
+## 🌍 Environments
+
+The project supports **multiple environments** with isolated resources:
+
+### Development (dev)
+- **Purpose**: Testing and development
+- **Ingestion**: Every 5 minutes
+- **Resources**: Smaller, cost-optimized
+- **Default environment** for local development
+
+### Production (prod)
+- **Purpose**: Production-ready deployment
+- **Ingestion**: Configurable (recommended: hourly)
+- **Resources**: Optimized for performance
+- **Requires manual approval** in CI/CD
+
+### Switching Environments
+```bash
+# Deploy to dev (default)
+make infra-apply
+
+# Deploy to prod
+make infra-apply ENV=prod
+
+# Check prod health
+make check ENV=prod
+```
+
+See [docs/environments.md](docs/environments.md) for detailed configuration.
 
 ## 📊 Key Features
 
@@ -257,6 +290,7 @@ Located in `.github/workflows/deploy.yml`:
 - [Demo & Testing Notes](docs/demo-notes.md)
 - [Architecture Diagram](docs/diagrams/architecture.png)
 - [CI/CD](docs/ci-cd.md)
+- [Deploy diagram](docs/diagram/deploy.png)
 
 ## 🎯 Trade-offs & Decisions
 

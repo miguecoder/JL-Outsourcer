@@ -69,11 +69,11 @@ jobs:
 
       - name: Run Unit Tests
         run: |
-          echo "✅ Unit tests would run here"
-          echo "TODO: Implement Jest tests for Lambda functions"
-          # cd services/ingestion && npm install && npm test
-          # cd ../processing && npm install && npm test
-          # cd ../api && npm install && npm test
+          echo "Running unit tests for Lambda functions..."
+          cd services/ingestion && npm install && npm test
+          cd ../processing && npm install && npm test
+          cd ../api && npm install && npm test
+          echo "✅ All unit tests passed"
 
   # Job 3: Terraform Plan
   plan:
@@ -252,16 +252,88 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Update Lambda Functions
+      - name: Get Version Info
+        id: version
         run: |
-          aws lambda update-function-code --function-name twl-pipeline-ingestion-dev --zip-file fileb://lambda-ingestion.zip
-          aws lambda update-function-code --function-name twl-pipeline-processing-dev --zip-file fileb://lambda-processing.zip
-          aws lambda update-function-code --function-name twl-pipeline-api-dev --zip-file fileb://lambda-api.zip
+          VERSION="${GITHUB_SHA:0:7}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Deploying version: $VERSION"
+
+      - name: Update Lambda Functions with Versioning
+        run: |
+          # Update Ingestion Lambda
+          INGESTION_RESULT=$(aws lambda update-function-code \
+            --function-name twl-pipeline-ingestion-dev \
+            --zip-file fileb://lambda-ingestion.zip \
+            --query 'Version' --output text)
+          echo "Ingestion Lambda version: $INGESTION_RESULT"
+          
+          # Publish new version
+          aws lambda publish-version \
+            --function-name twl-pipeline-ingestion-dev \
+            --description "Deployed via CI/CD - SHA: ${{ steps.version.outputs.version }}"
+          
+          # Update Processing Lambda
+          PROCESSING_RESULT=$(aws lambda update-function-code \
+            --function-name twl-pipeline-processing-dev \
+            --zip-file fileb://lambda-processing.zip \
+            --query 'Version' --output text)
+          echo "Processing Lambda version: $PROCESSING_RESULT"
+          
+          aws lambda publish-version \
+            --function-name twl-pipeline-processing-dev \
+            --description "Deployed via CI/CD - SHA: ${{ steps.version.outputs.version }}"
+          
+          # Update API Lambda
+          API_RESULT=$(aws lambda update-function-code \
+            --function-name twl-pipeline-api-dev \
+            --zip-file fileb://lambda-api.zip \
+            --query 'Version' --output text)
+          echo "API Lambda version: $API_RESULT"
+          
+          aws lambda publish-version \
+            --function-name twl-pipeline-api-dev \
+            --description "Deployed via CI/CD - SHA: ${{ steps.version.outputs.version }}"
+
+      - name: Create Lambda Aliases
+        run: |
+          # Create or update LATEST alias for each Lambda
+          for FUNCTION in ingestion processing api; do
+            FUNCTION_NAME="twl-pipeline-${FUNCTION}-dev"
+            
+            # Get latest version
+            VERSION=$(aws lambda list-versions-by-function \
+              --function-name $FUNCTION_NAME \
+              --query 'Versions[-1].Version' --output text)
+            
+            # Update or create alias
+            aws lambda update-alias \
+              --function-name $FUNCTION_NAME \
+              --name LATEST \
+              --function-version $VERSION 2>/dev/null || \
+            aws lambda create-alias \
+              --function-name $FUNCTION_NAME \
+              --name LATEST \
+              --function-version $VERSION
+            
+            echo "✓ $FUNCTION_NAME → LATEST alias → v$VERSION"
+          done
+
+      - name: Tag Deployment
+        run: |
+          echo "deployment_version=${{ steps.version.outputs.version }}" >> $GITHUB_ENV
+          echo "📦 Deployed version: ${{ steps.version.outputs.version }}"
 
       - name: Verify Deployment
         run: |
-          echo "✅ Lambdas updated successfully"
+          echo "✅ Lambdas deployed with versioning"
           aws lambda list-functions --query 'Functions[?starts_with(FunctionName, `twl-pipeline`)].FunctionName'
+          
+          echo ""
+          echo "📋 Versions deployed:"
+          aws lambda list-versions-by-function --function-name twl-pipeline-ingestion-dev --max-items 3
+          aws lambda list-versions-by-function --function-name twl-pipeline-processing-dev --max-items 3
+          aws lambda list-versions-by-function --function-name twl-pipeline-api-dev --max-items 3
 
   # Job 6: Integration Test
   integration-test:
