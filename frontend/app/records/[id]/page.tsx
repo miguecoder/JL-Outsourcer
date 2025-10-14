@@ -20,6 +20,7 @@ export default function RecordDetailPage({ params }: { params: { id: string } })
   const router = useRouter();
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+  const API_KEY = process.env.NEXT_PUBLIC_API_KEY || '';
 
   useEffect(() => {
     fetchRecord();
@@ -27,7 +28,15 @@ export default function RecordDetailPage({ params }: { params: { id: string } })
 
   const fetchRecord = async () => {
     try {
-      const response = await fetch(`${API_URL}/records/${params.id}`);
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (API_KEY) {
+        headers['x-api-key'] = API_KEY;
+      }
+      
+      const response = await fetch(`${API_URL}/records/${params.id}`, { headers });
       if (response.status === 404) {
         throw new Error('Record not found');
       }

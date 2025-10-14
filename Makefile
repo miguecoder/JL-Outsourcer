@@ -188,6 +188,13 @@ clean: ## Clean temporary files and build artifacts
 	@rm -rf $(FRONTEND_DIR)/.next
 	@echo "$(GREEN)✅ Cleaned$(NC)"
 
+clean-frontend: ## Clean and rebuild frontend
+	@echo "$(BLUE)🧹 Cleaning frontend...$(NC)"
+	@cd $(FRONTEND_DIR) && rm -rf .next node_modules
+	@echo "$(BLUE)📦 Reinstalling dependencies...$(NC)"
+	@cd $(FRONTEND_DIR) && npm install
+	@echo "$(GREEN)✅ Frontend cleaned and ready$(NC)"
+
 ##@ Documentation
 
 docs: ## Open documentation

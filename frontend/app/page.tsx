@@ -20,6 +20,7 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+  const API_KEY = process.env.NEXT_PUBLIC_API_KEY || '';
 
   useEffect(() => {
     fetchAnalytics();
@@ -27,7 +28,16 @@ export default function Dashboard() {
 
   const fetchAnalytics = async () => {
     try {
-      const response = await fetch(`${API_URL}/analytics`);
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      // Add API Key if available
+      if (API_KEY) {
+        headers['x-api-key'] = API_KEY;
+      }
+      
+      const response = await fetch(`${API_URL}/analytics`, { headers });
       if (!response.ok) throw new Error('Failed to fetch analytics');
       const data = await response.json();
       setAnalytics(data);

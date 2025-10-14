@@ -23,6 +23,7 @@ export default function RecordsPage() {
   const router = useRouter();
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+  const API_KEY = process.env.NEXT_PUBLIC_API_KEY || '';
 
   useEffect(() => {
     fetchRecords();
@@ -35,7 +36,15 @@ export default function RecordsPage() {
         ? `${API_URL}/records?limit=50`
         : `${API_URL}/records?source=${sourceFilter}&limit=50`;
       
-      const response = await fetch(url);
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (API_KEY) {
+        headers['x-api-key'] = API_KEY;
+      }
+      
+      const response = await fetch(url, { headers });
       if (!response.ok) throw new Error('Failed to fetch records');
       
       const data = await response.json();

@@ -13,3 +13,15 @@ output "api_gateway_id" {
   value       = aws_apigatewayv2_api.main.id
 }
 
+output "api_key_parameter" {
+  description = "SSM Parameter name for API Key"
+  value       = aws_ssm_parameter.api_key.name
+  sensitive   = true
+}
+
+output "api_key_value" {
+  description = "API Key value (use for frontend configuration)"
+  value       = aws_ssm_parameter.api_key.value
+  sensitive   = true
+}
+

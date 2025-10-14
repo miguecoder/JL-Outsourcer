@@ -147,3 +147,36 @@ resource "aws_lambda_permission" "api_gateway" {
   source_arn    = "${aws_apigatewayv2_api.main.execution_arn}/*/*"
 }
 
+# ========================================
+# API KEY & SECRETS MANAGEMENT (Security Demo)
+# ========================================
+
+# Generate secure API Key
+resource "random_string" "api_key_suffix" {
+  length  = 32
+  special = true
+  override_special = "-_"
+}
+
+# Store API Key in SSM Parameter Store (best practice for secrets)
+resource "aws_ssm_parameter" "api_key" {
+  name        = "/${var.project_name}/${var.environment}/api-key"
+  description = "API Key for frontend authentication (demo)"
+  type        = "SecureString"
+  value       = "twl-demo-key-${var.environment}-${random_string.api_key_suffix.result}"
+
+  tags = {
+    Name = "API Key"
+    Purpose = "Frontend Authentication"
+  }
+}
+
+# Note: HTTP API Gateway doesn't support native API Keys like REST API.
+# For production auth, implement:
+# - AWS Cognito User Pools
+# - Lambda Authorizer with JWT validation
+# - OAuth 2.0 / OpenID Connect
+#
+# This SSM parameter demonstrates secrets management best practices.
+
+
