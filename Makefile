@@ -3,7 +3,25 @@
 
 # Variables
 PROJECT_NAME = twl-pipeline
-ENV ?= dev
+
+# Leer ENV desde .env.secrets si existe, sino usar dev por defecto
+# Prioridad: ENV desde línea de comandos > PIPELINE_ENV desde .env.secrets > dev por defecto
+ifneq ($(ENV),)
+  # ENV ya está definido desde línea de comandos (ENV=prod make ...)
+else
+  # Intentar leer PIPELINE_ENV desde .env.secrets
+  ifneq ($(wildcard .env.secrets),)
+    PIPELINE_ENV := $(shell grep -E '^PIPELINE_ENV=' .env.secrets 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d ' ')
+    ifneq ($(PIPELINE_ENV),)
+      ENV := $(PIPELINE_ENV)
+    else
+      ENV := dev
+    endif
+  else
+    ENV := dev
+  endif
+endif
+
 INFRA_DIR = infra/envs/$(ENV)
 FRONTEND_DIR = frontend
 
@@ -43,18 +61,21 @@ infra-init: ## Initialize Terraform
 	@cd $(INFRA_DIR) && terraform init -upgrade
 	@echo "$(GREEN)✅ Terraform initialized$(NC)"
 
-infra-plan: ## Run Terraform plan
+infra-plan: ## Run Terraform plan (usa variables PIPELINE_* desde .env.secrets)
 	@echo "$(BLUE)📋 Running Terraform plan...$(NC)"
-	@cd $(INFRA_DIR) && terraform plan
+	@echo "$(YELLOW)Environment: $(ENV)$(NC)"
+	@ENV=$(ENV) ./terraform.sh plan
 
-infra-apply: ## Apply Terraform changes
+infra-apply: ## Apply Terraform changes (usa variables PIPELINE_* desde .env.secrets)
 	@echo "$(BLUE)🚀 Applying Terraform changes...$(NC)"
-	@cd $(INFRA_DIR) && terraform apply
+	@echo "$(YELLOW)Environment: $(ENV)$(NC)"
+	@ENV=$(ENV) ./terraform.sh apply
 	@echo "$(GREEN)✅ Infrastructure deployed$(NC)"
 
 infra-destroy: ## Destroy all infrastructure (use with caution!)
 	@echo "$(RED)⚠️  Destroying infrastructure...$(NC)"
-	@cd $(INFRA_DIR) && terraform destroy
+	@echo "$(YELLOW)Environment: $(ENV)$(NC)"
+	@ENV=$(ENV) ./terraform.sh destroy
 
 infra-output: ## Show Terraform outputs
 	@cd $(INFRA_DIR) && terraform output
@@ -97,11 +118,11 @@ package-api: ## Package API Lambda
 		z.close()"
 	@echo "$(GREEN)✅ lambda-api.zip created$(NC)"
 
-deploy-lambdas: package ## Deploy all Lambda functions to AWS
+deploy-lambdas: package ## Deploy all Lambda functions to AWS (usa variables PIPELINE_* desde .env.secrets)
 	@echo "$(BLUE)🚀 Deploying Lambda functions...$(NC)"
-	@aws lambda update-function-code --function-name $(PROJECT_NAME)-ingestion-$(ENV) --zip-file fileb://lambda-ingestion.zip
-	@aws lambda update-function-code --function-name $(PROJECT_NAME)-processing-$(ENV) --zip-file fileb://lambda-processing.zip
-	@aws lambda update-function-code --function-name $(PROJECT_NAME)-api-$(ENV) --zip-file fileb://lambda-api.zip
+	@./aws-cli.sh lambda update-function-code --function-name $(PROJECT_NAME)-ingestion-$(ENV) --zip-file fileb://lambda-ingestion.zip
+	@./aws-cli.sh lambda update-function-code --function-name $(PROJECT_NAME)-processing-$(ENV) --zip-file fileb://lambda-processing.zip
+	@./aws-cli.sh lambda update-function-code --function-name $(PROJECT_NAME)-api-$(ENV) --zip-file fileb://lambda-api.zip
 	@echo "$(GREEN)✅ All Lambdas deployed$(NC)"
 
 ##@ Frontend
@@ -138,9 +159,9 @@ test-api: ## Test API endpoints
 	echo "\nTesting /records..."; \
 	curl -s "$$API_URL/records?limit=3" | python3 -m json.tool || echo "Failed"
 
-test-ingestion: ## Manually trigger ingestion Lambda
+test-ingestion: ## Manually trigger ingestion Lambda (usa variables PIPELINE_* desde .env.secrets)
 	@echo "$(BLUE)🔄 Triggering ingestion Lambda...$(NC)"
-	@aws lambda invoke --function-name $(PROJECT_NAME)-ingestion-$(ENV) response.json
+	@./aws-cli.sh lambda invoke --function-name $(PROJECT_NAME)-ingestion-$(ENV) response.json
 	@cat response.json | python3 -m json.tool
 	@rm response.json
 
@@ -148,22 +169,22 @@ check: ## Health check of the entire pipeline
 	@echo "$(BLUE)🔍 Running pipeline health check...$(NC)"
 	@bash scripts/check-pipeline-impl.sh
 
-logs-ingestion: ## View ingestion Lambda logs
-	@aws logs filter-log-events \
+logs-ingestion: ## View ingestion Lambda logs (usa variables PIPELINE_* desde .env.secrets)
+	@./aws-cli.sh logs filter-log-events \
 		--log-group-name /aws/lambda/$(PROJECT_NAME)-ingestion-$(ENV) \
 		--limit 20 \
 		--query 'events[*].message' \
 		--output text
 
-logs-processing: ## View processing Lambda logs
-	@aws logs filter-log-events \
+logs-processing: ## View processing Lambda logs (usa variables PIPELINE_* desde .env.secrets)
+	@./aws-cli.sh logs filter-log-events \
 		--log-group-name /aws/lambda/$(PROJECT_NAME)-processing-$(ENV) \
 		--limit 20 \
 		--query 'events[*].message' \
 		--output text
 
-logs-api: ## View API Lambda logs
-	@aws logs filter-log-events \
+logs-api: ## View API Lambda logs (usa variables PIPELINE_* desde .env.secrets)
+	@./aws-cli.sh logs filter-log-events \
 		--log-group-name /aws/lambda/$(PROJECT_NAME)-api-$(ENV) \
 		--limit 20 \
 		--query 'events[*].message' \

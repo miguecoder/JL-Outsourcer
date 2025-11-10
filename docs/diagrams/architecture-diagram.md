@@ -244,7 +244,7 @@
 ## Data Flow Sequence
 
 ```
-[1] EventBridge (every 5 min)
+[1] EventBridge (every 30 min)
       │
       ▼
 [2] Ingestion Lambda (fetch APIs)
